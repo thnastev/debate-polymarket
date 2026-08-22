@@ -1,0 +1,12 @@
+# config.js carries the Supabase details and is edited between uploads, so it
+# must never be served from cache — a stale copy sends the whole site at the
+# wrong database, or at none. index.html is cheap and points at hashed assets.
+/config.js
+  Cache-Control: no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-store, must-revalidate
+
+# Hashed filenames, so these are safe to keep forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

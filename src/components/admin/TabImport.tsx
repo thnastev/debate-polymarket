@@ -4,6 +4,7 @@ import {
   fetchFlags, resolveFlag, updateTournament, type TabRound,
 } from '../../lib/api';
 import { parsePairings, parseTeams, looksSwing } from '../../lib/tab';
+import { generateForRound, generateForTournament, describe } from '../../lib/generate';
 import { friendlyError } from '../../lib/errors';
 import type { Tournament } from '../../lib/types';
 
@@ -37,7 +38,18 @@ export default function TabImport({
   };
   useEffect(reload, [tournament.id]);
 
-  async function importPairings() {
+  /**
+   * Paste the draw, get markets. One press.
+   *
+   * `alsoGenerate` is the difference between this and the two-step path: with
+   * it, the draw is mirrored AND the §11 launch set of markets is created for
+   * the round and every full BP room in it. Without it you get the draw only,
+   * and choose templates yourself in the Markets tab.
+   *
+   * Safe to press twice: the unique index on the template key means a re-import
+   * of a redrawn round adds the new rooms and leaves the existing markets alone.
+   */
+  async function importPairings(alsoGenerate: boolean) {
     setBusy(true); setErr(''); setReport([]);
     try {
       const parsed = parsePairings(JSON.parse(paste));
@@ -66,13 +78,31 @@ export default function TabImport({
       const saved = await upsertTabDebates(debateRows);
 
       const swings = teamRows.filter((t) => t.is_swing).length;
-      setReport([
+      const lines = [
         `${savedTeams.length} teams saved${swings ? `, ${swings} marked as swings and excluded from every prior` : ''}.`,
         `${saved.length} rooms saved into ${round.name}.`,
         ...(parsed.debates.length - saved.length > 0
           ? [`${parsed.debates.length - saved.length} room(s) skipped — not a full four-team BP room.`] : []),
-        ...parsed.warnings,
-      ]);
+      ];
+
+      if (alsoGenerate) {
+        const all = await fetchTabTeams(tournament.id);
+        const r = await generateForRound({
+          tournament, round, debates: saved, teams: all,
+        });
+        lines.push(describe(r));
+        if (r.created === 0 && r.existed > 0) {
+          lines.push('Those markets were already there — nothing was duplicated.');
+        }
+        // Tournament-wide markets only make sense once the field is known, and
+        // only need making once.
+        const t = await generateForTournament({ tournament, teams: all });
+        if (t.created > 0) lines.push(`Plus ${t.created} tournament-wide market(s).`);
+      } else {
+        lines.push('Draw imported. Create markets from the Markets tab when you are ready.');
+      }
+
+      setReport([...lines, ...parsed.warnings]);
       reload();
       onChanged();
     } catch (e) {
@@ -154,12 +184,24 @@ export default function TabImport({
           </div>
         </div>
         <div className="btnrow">
-          <button className="btn adm" disabled={busy || !paste.trim()} onClick={importPairings}>
-            Import pairings (draw)
+          <button className="btn adm" disabled={busy || !paste.trim()}
+            onClick={() => importPairings(true)}>
+            Import draw &amp; make the markets
+          </button>
+          <button className="btn" disabled={busy || !paste.trim()}
+            onClick={() => importPairings(false)}>
+            Import draw only
           </button>
           <button className="btn" disabled={busy || !paste.trim()} onClick={importTeamsOnly}>
-            Import teams only
+            Teams only
           </button>
+        </div>
+        <div className="note">
+          <b>Import draw &amp; make the markets</b> does the lot: teams, rooms, and the
+          launch set of markets — the call and the top speaker for every room, the
+          motion category for the round, plus the tournament winner and top speaker.
+          Everything else is a tick-box in the Markets tab. Pressing it twice is safe:
+          a re-import after a redraw adds the new rooms and leaves existing markets alone.
         </div>
         {busy && <div className="note"><span className="spin" />Importing…</div>}
         {report.map((r, i) => <div className="note" key={i} style={{ color: 'var(--good)' }}>{r}</div>)}

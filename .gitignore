@@ -6,3 +6,5 @@ dist/
 .DS_Store
 dist-preview/
 biser-market-preview.html
+release/
+biser-market-site.zip

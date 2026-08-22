@@ -236,7 +236,8 @@ begin
     raise exception 'not_authenticated' using errcode = '28000';
   end if;
 
-  -- idempotency: if we've seen this key, return the original result unchanged
+  -- Idempotency, fast path: a key we have already seen returns the original
+  -- result without taking the market lock at all.
   if p_idem is not null then
     select jsonb_build_object('replayed', true, 'balance_after', balance_after,
                               'prices', prices_after, 'shares', shares)
@@ -248,6 +249,32 @@ begin
   -- LOCK FIRST. Nothing is read before this.
   select * into v_mkt from markets where id = p_market for update;
   if not found then raise exception 'market_not_found'; end if;
+
+  -- Idempotency, again, now that the lock is held.
+  --
+  -- The check above races: two taps of one button arrive together, both look,
+  -- both find nothing, and both go on to trade. The unique index on
+  -- (profile_id, idempotency_key) does stop the second bet existing — but it
+  -- stops it by aborting the transaction with `duplicate key value violates
+  -- unique constraint "bets_idem"`, which is the RIGHT outcome wearing a
+  -- frightening error. The trader is told their bet failed when it went
+  -- through, and the offline queue reads a constraint violation as a
+  -- deliberate rejection and drops the trade instead of reporting success.
+  --
+  -- Re-reading here closes it: the lock serialises the two, so by the time the
+  -- loser is woken the winner has committed and its bet row is visible. The
+  -- loser returns the winner's result, which is what a replay should do.
+  --
+  -- This runs BEFORE the status checks on purpose — a bet that already
+  -- happened should replay cleanly even if the market has since closed.
+  if p_idem is not null then
+    select jsonb_build_object('replayed', true, 'balance_after', balance_after,
+                              'prices', prices_after, 'shares', shares)
+      into v_existing from bets
+     where profile_id = v_uid and idempotency_key = p_idem;
+    if v_existing is not null then return v_existing; end if;
+  end if;
+
   if v_mkt.status <> 'open' then
     raise exception 'market_not_open' using detail = v_mkt.status::text;
   end if;

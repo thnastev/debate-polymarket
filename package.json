@@ -13,7 +13,8 @@
     "db:test": "./scripts/local-db.sh test",
     "preview:build": "vite build --config preview/vite.config.ts",
     "test:ui": "npm run preview:build && node scripts/ui-check.mjs",
-    "test:all": "./scripts/test-all.sh"
+    "test:all": "./scripts/test-all.sh",
+    "preview:standalone": "npm run preview:build && node scripts/build-preview-standalone.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

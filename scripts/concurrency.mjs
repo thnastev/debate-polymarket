@@ -168,6 +168,48 @@ catch (e) { blocked = /timeout/i.test(e.message); }
 ok(blocked, 'a trade on the SAME market waits for the lock — trades are serialised');
 
 await holder.query('rollback'); await holder.end(); await other2.end(); await same.end();
+
+// ---------- 7. a double-tap is exactly one bet ----------
+// §13. The client mints the idempotency key on the FIRST press and reuses it,
+// so a double-tap arrives as N simultaneous calls carrying one key. All of
+// them must land as a single bet, and the losers must REPLAY rather than fail:
+// the unique index alone stops the second bet existing, but it does so by
+// aborting with a constraint violation, which tells a trader their bet failed
+// when it went through and makes the offline queue drop a good trade.
+const TAP = 5, KEY = 'double-tap-key';
+const tapper = traders[2];
+const taps = await Promise.all(Array.from({ length: TAP }, async () => {
+  const c = new pg.Client(CONN); await c.connect();
+  await c.query(`select set_config('request.jwt.claim.sub', $1, false)`, [tapper.id]);
+  return c;
+}));
+let tapRelease;
+const tapGate = new Promise((r) => { tapRelease = r; });
+const tapRuns = taps.map(async (c) => {
+  await tapGate;
+  try {
+    const r = await c.query(`select place_bet($1, 0, 25, null, $2) as res`, [other, KEY]);
+    return { ok: true, res: r.rows[0].res };
+  } catch (e) { return { ok: false, err: e.message }; }
+});
+tapRelease();
+const tapOut = await Promise.all(tapRuns);
+await Promise.all(taps.map((c) => c.end()));
+
+const tapBets = Number((await admin.query(
+  `select count(*) n from bets where market_id = $1 and idempotency_key = $2`, [other, KEY])).rows[0].n);
+const tapApplied = tapOut.filter((r) => r.ok && r.res.ok).length;
+const tapReplayed = tapOut.filter((r) => r.ok && r.res.replayed).length;
+const tapErrors = tapOut.filter((r) => !r.ok);
+ok(tapBets === 1, `${TAP} simultaneous taps on one idempotency key create exactly one bet (${tapBets})`);
+ok(tapApplied === 1 && tapReplayed === TAP - 1,
+  `  └─ one applied, ${TAP - 1} replayed (got ${tapApplied} / ${tapReplayed})`);
+ok(tapErrors.length === 0,
+  `  └─ and none of them errors${tapErrors.length ? ` — ${tapErrors[0].err}` : ''}`);
+
+const bad2 = await admin.query(`select * from verify_ledger()`);
+ok(bad2.rowCount === 0, `  └─ verify_ledger() still passes (${bad2.rowCount} mismatches)`);
+
 await admin.end();
 
 if (fails.length) { console.error(`\n  ${fails.length} assertion(s) failed`); process.exit(1); }

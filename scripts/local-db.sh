@@ -26,8 +26,11 @@ reset() {
   # Sequence and function grants only. The TABLE grants are in 0003_rls.sql,
   # deliberately — getting them right is part of what the RLS suite tests, so
   # the harness must not paper over them.
-  $PSQL -d "$DB" -c "grant usage, select on all sequences in schema public to authenticated;
-                     grant execute on all functions in schema public to authenticated;" >/dev/null
+  # Sequence grants only. TABLE and FUNCTION grants are stated by the
+  # migrations themselves — a blanket `grant execute on all functions` here
+  # would silently re-grant the privileged RPCs that 0005 revokes, and the RLS
+  # suite would then be testing the harness rather than the schema.
+  $PSQL -d "$DB" -c "grant usage, select on all sequences in schema public to authenticated;" >/dev/null
   echo "  database $DB ready"
 }
 
@@ -38,7 +41,10 @@ case "${1:-test}" in
     for f in supabase/tests/[0-9][0-9]_*.sql; do
       case "$(basename "$f")" in 00_*) continue ;; esac
       echo "── $(basename "$f")"
-      $PSQL -d "$DB" -f "$f"
+      # psql prefixes every RAISE NOTICE with its file and line; strip it so the
+      # suite reads as a test report rather than a compiler log.
+      $PSQL -d "$DB" -f "$f" 2>&1 | sed -E 's/^psql:[^ ]+ (NOTICE|INFO):  //'
+      test "${PIPESTATUS[0]}" -eq 0
       # helper schema created by 01; make it reachable from role-switched blocks
       $PSQL -d "$DB" -c "grant execute on all functions in schema t to authenticated" >/dev/null 2>&1 || true
     done

@@ -7,6 +7,7 @@
 import { createRoot } from 'react-dom/client';
 import { SessionCtx, type SessionValue } from '../src/lib/session';
 import Quadrant from '../src/components/Quadrant';
+import BetPanel from '../src/components/BetPanel';
 import OutcomeList from '../src/components/OutcomeList';
 import OddsChart from '../src/components/OddsChart';
 import { prices, qFromPrior } from '../src/lib/lmsr';
@@ -29,11 +30,25 @@ const listOutcomes = [
 ].map((l, i) => mk(i, l, '', ['#C8853A', '#3E7A9A', '#F0C48A', '#93BFD6', '#A78BFA', '#7FD4A8', '#E4707A'][i],
   [90, 40, 10, -20, -40, -60, -80][i]));
 
+const profile = {
+  id: 'p1', display_name: 'Ivan', role: 'trader' as const, balance: 1000,
+  tab_speaker_id: null, tab_adj_id: null, is_active: true, is_approved: true,
+};
+
 const session = (adminView: boolean): SessionValue => ({
-  session: null, profile: null, tournament: null, loading: false,
+  session: null, profile, tournament: null, loading: false,
   isGameMaker: adminView, adminView,
   setAdminView: () => {}, refreshProfile: async () => {}, signOut: async () => {},
 });
+
+const market = {
+  id: 'm', tournament_id: 't', scope: 'room' as const, title: 'R1 · Aula 1 — the call',
+  resolution_rule: 'Which bench takes the 1st.', resolver_name: 'CA team',
+  layout: 'room', b: 300, status: 'open' as const, opens_at: null, closes_at: null,
+  winner_index: null, close_prices: null, seeded_from_elo: true,
+  prior: [0.4, 0.25, 0.2, 0.15], round_id: null, debate_id: null,
+  template_key: 'room.call', created_at: new Date().toISOString(),
+};
 
 const roomP = prices(roomOutcomes.map((o) => o.q), 300);
 const listP = prices(listOutcomes.map((o) => o.q), 400);
@@ -67,6 +82,10 @@ function Panel({ admin }: { admin: boolean }) {
           <OutcomeList outcomes={listOutcomes} p={listP} selected={2} onSelect={() => {}} />
           <div className="note">Odds are what 1 ƀ pays back if that outcome lands.</div>
         </div>
+        <BetPanel
+          market={market} outcomes={roomOutcomes} selected={0}
+          onSelect={() => {}} myShares={[0, 0, 0, 0]} onTraded={() => {}}
+        />
         <div className="card">
           <h2>How the odds have moved</h2>
           <OddsChart history={history} outcomes={roomOutcomes} current={roomP}

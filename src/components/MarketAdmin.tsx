@@ -11,7 +11,7 @@ import type { Market, Outcome, MarketStatus } from '../lib/types';
 export default function MarketAdmin({
   market, outcomes, onChanged,
 }: { market: Market; outcomes: Outcome[]; onChanged: () => Promise<void> }) {
-  const { tournament } = useSession();
+  const { tournament, adminView } = useSession();
   const [title, setTitle] = useState(market.title);
   const [rule, setRule] = useState(market.resolution_rule);
   const [resolver, setResolver] = useState(market.resolver_name);
@@ -19,6 +19,13 @@ export default function MarketAdmin({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
+
+  // Fail closed. This is the one trader-facing tree that renders probabilities,
+  // and it is reached through a tab that only exists in the game-maker view —
+  // but "only reachable by convention" is not the same as "cannot render".
+  // Every privileged action below is refused by the database anyway; this stops
+  // the percentages reaching a trader's screen in the first place.
+  if (!adminView) return <div className="empty">Game maker only.</div>;
 
   const p = prices(outcomes.map((o) => o.q), market.b);
   const n = outcomes.length;

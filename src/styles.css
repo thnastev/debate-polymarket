@@ -143,9 +143,9 @@ body.adm{
 .bal small{font-family:var(--mono);font-size:10px;color:var(--muted);font-weight:400;
   letter-spacing:.1em;display:block;text-transform:uppercase}
 .seg{display:flex;background:var(--ink3);border-radius:7px;padding:2px;margin:11px 0}
-.seg button{flex:1;background:none;border:0;padding:8px;border-radius:5px;
+.seg button{flex:1;background:none;border:0;padding:10px 8px;border-radius:5px;
   font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--muted);
-  text-transform:uppercase}
+  text-transform:uppercase;min-height:36px}
 .seg button.on{background:var(--act);color:#170F2E;font-weight:600}
 .selrow{background:var(--ink3);border-radius:7px;padding:9px 10px;margin-bottom:10px;
   display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -158,8 +158,12 @@ body.adm{
 .amt .unit{font-family:var(--mono);font-size:13px;color:var(--muted)}
 input[type=range]{width:100%;accent-color:var(--act);margin:2px 0 9px;height:28px}
 .quick{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+/* Thumb-sized. These are the controls a trader actually pokes at while
+   standing in a corridor, so they get a hard floor rather than whatever
+   padding happens to add up to. */
 .quick button{background:var(--ink3);border:1px solid var(--line);border-radius:6px;
-  padding:7px 11px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--muted);
+  min-height:36px}
 .quick button:hover{color:var(--paper);border-color:var(--faint)}
 .prev{background:var(--ink3);border-radius:8px;padding:10px;margin-bottom:10px;
   font-family:var(--mono);font-size:12px}
@@ -207,7 +211,7 @@ tr:last-child td{border-bottom:0}
 .field textarea{min-height:62px;resize:vertical}
 .btn{background:var(--ink3);border:1px solid var(--line);border-radius:7px;padding:9px 12px;
   font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--paper)}
+  color:var(--paper);min-height:34px}
 .btn:hover{border-color:var(--act)}
 .btn.pri{background:var(--act);color:#170F2E;border-color:var(--act);font-weight:600}
 .btn.adm{background:var(--admin);color:#241703;border-color:var(--admin);font-weight:600}

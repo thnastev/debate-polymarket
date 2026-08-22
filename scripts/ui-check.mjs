@@ -114,6 +114,33 @@ for (const [w, h, name] of [[380, 1400, 'mobile 380px'], [1280, 1600, 'desktop 1
   ok(small.length === 0,
     `every tap target is at least 30px tall${small.length ? ` — ${small.join(', ')}` : ''}`);
 
+  // §13: "The bet preview shows effective odds, not headline odds."
+  // The fixture is a 25 ƀ stake on an outcome trading at ×3.01; the stake moves
+  // the price, so the trader's own odds must come back WORSE than the headline.
+  const bet = await page.evaluate(() => {
+    const panel = [...document.querySelectorAll('[data-view="trader"] .card')]
+      .find((c) => c.querySelector('.prev'));
+    if (!panel) return null;
+    const rows = [...panel.querySelectorAll('.prev .r')].map((r) => r.textContent ?? '');
+    const headline = panel.querySelector('.selrow .o')?.textContent ?? '';
+    const button = panel.querySelector('.go');
+    const b = button?.getBoundingClientRect();
+    return { rows, headline, buttonHeight: b ? Math.round(b.height) : 0,
+             buttonText: button?.textContent ?? '' };
+  });
+  ok(bet !== null, 'the bet panel renders');
+  if (bet) {
+    const yourOdds = bet.rows.find((r) => /Your odds/.test(r)) ?? '';
+    const eff = Number((yourOdds.match(/×([\d.]+)/) ?? [])[1]);
+    const head = Number((bet.headline.match(/×([\d.]+)/) ?? [])[1]);
+    ok(Number.isFinite(eff), `the preview shows the trader's own odds (${yourOdds.trim()})`);
+    ok(eff < head,
+      `effective odds ×${eff} are worse than the headline ×${head} — the stake moved the price`);
+    ok(bet.rows.some((r) => /Returns if/.test(r)), 'and what the bet returns if it lands');
+    ok(bet.buttonHeight >= 44,
+      `the bet button is thumb-sized (${bet.buttonHeight}px) and says "${bet.buttonText.trim()}"`);
+  }
+
   await page.screenshot({ path: `dist-preview/${name.split(' ')[0]}.png`, fullPage: true });
   await page.close();
 }

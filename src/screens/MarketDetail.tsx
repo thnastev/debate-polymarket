@@ -120,6 +120,9 @@ export default function MarketDetail() {
     ['mine', 'My bets'], ['lead', 'Leaderboard'], ['recent', 'Recent bets'], ['result', 'Result'],
   ];
   if (adminView) tabs.push(['admin', 'Edit market']);
+  // Leaving the game-maker view while the editor tab is open must not strand
+  // the operator on a tab that is no longer in the list.
+  const activeTab: Tab = tab === 'admin' && !adminView ? 'mine' : tab;
 
   return (
     <>
@@ -168,12 +171,12 @@ export default function MarketDetail() {
           <div className="card">
             <div className="tabs">
               {tabs.map(([k, label]) => (
-                <button key={k} className={(tab === k ? 'on ' : '') + (k === 'admin' ? 'a' : '')}
+                <button key={k} className={(activeTab === k ? 'on ' : '') + (k === 'admin' ? 'a' : '')}
                   onClick={() => setTab(k)}>{label}</button>
               ))}
             </div>
             <TabBody
-              tab={tab} market={market} outcomes={outcomes} p={p}
+              tab={activeTab} market={market} outcomes={outcomes} p={p}
               myShares={myShares} profileId={profile?.id} onChanged={reload}
             />
           </div>

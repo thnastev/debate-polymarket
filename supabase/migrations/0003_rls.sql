@@ -14,6 +14,15 @@ grant insert, update, delete on
   admin_log, tab_flags to authenticated;
 grant update on profiles to authenticated;
 
+-- Function grants are stated explicitly, per function, because Postgres grants
+-- EXECUTE to PUBLIC on every newly created function by default. Anything
+-- privileged therefore has to be revoked on purpose (0002, 0004 and 0005 do),
+-- and a later blanket `grant execute on all functions` would quietly undo all
+-- of it. is_game_maker is needed by the RLS policies themselves, which are
+-- evaluated as the querying user.
+grant execute on function is_game_maker() to authenticated;
+grant execute on function lmsr_prices(uuid) to authenticated;
+
 alter table profiles        enable row level security;
 alter table tournaments     enable row level security;
 alter table tab_teams       enable row level security;

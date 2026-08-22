@@ -12,7 +12,8 @@
     "db:reset": "./scripts/local-db.sh reset",
     "db:test": "./scripts/local-db.sh test",
     "preview:build": "vite build --config preview/vite.config.ts",
-    "test:ui": "npm run preview:build && node scripts/ui-check.mjs"
+    "test:ui": "npm run preview:build && node scripts/ui-check.mjs",
+    "test:all": "./scripts/test-all.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
